@@ -1,0 +1,6 @@
+{
+	"name": "sessionIDserver",
+	"version": "0.0.1",
+	"description": "Proxy server to get CafeX session ID",
+	"license": "GPL-3.0"
+}

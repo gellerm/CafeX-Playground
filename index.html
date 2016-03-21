@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+	<style>
+            video {
+                border-style: solid;
+            }
+            
+            video#local {
+                width: 320px;
+                height: 240px;
+            }
+            
+            video#remote {
+                width: 480px;
+                height: 360px;
+            }
+        </style>
+<title>Hello Cafex</title>
+</head>
+<body>
+        <video id='remote' src="" autoplay></video>
+        <video id='local' src="" autoplay></video>
+        <form>
+            <input type='text' id='number'></input>
+            <button id='dial'>Dial</button>
+        </form>
+</body>
+</html>
+<script type='text/javascript' src='http://ec2-52-88-97-60.us-west-2.compute.amazonaws.com:8080/gateway/adapter.js'></script>
+<script type='text/javascript' src='http://ec2-52-88-97-60.us-west-2.compute.amazonaws.com:8080/gateway/fusion-client-sdk.js'></script>
+<script src='https://code.jquery.com/jquery-1.9.1.min.js'></script>
+<script type='text/javascript' src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+<script type='text/javascript' src="https://cdnjs.cloudflare.com/ajax/libs/URI.js/1.17.1/URI.js"></script>
+<script type='text/javascript'>
+	console.log("Connecting...");
+	var sessionID;
+	var url = new URI(window.location.href);
+	var userN = url.search(true).username;
+	var socket = io.connect("wss://localhost:8082");
+	
+	console.log("username = " + userN);
+	socket.emit('sessionidrequest', {msg: 'give me session ID',
+									 username: userN});
+	
+	socket.on('sessionidresponse', responseHandler);
+	
+	socket.on("connect", function() { console.log("connection success"); });
+	socket.on("connect-failed", function() { console.log("connection fail"); });
+	
+	function responseHandler(message) {
+		sessionID = message.sessionid;
+		var stunServers = [	{'url': 'stun:stun.l.google.com:19302'}];
+		
+		UC.start(sessionID, stunServers);
+	    // when available, direct the media streams to the right divs
+		UC.phone.onLocalMediaStream = function(mediaStream) {
+        var elem = document.getElementById('local');
+        attachMediaStream(elem, mediaStream);
+    	};
+
+        // error handler
+        UC.phone.onError = function (code, message, errorDetails) {
+            console.log ('NW: onError + [' + code + ', ' + message + ', ' + errorDetails);
+        };
+
+        // setup an incoming call handler
+		UC.phone.onIncomingCall = function(call) {
+		    if (window.confirm('Answer call from: ' + call.getRemoteAddress() + '?')) { 
+					call.onRemoteMediaStream = function (mediaStream) {
+					var elem = document.getElementById('remote');
+            		attachMediaStream(elem, mediaStream);
+        		};
+        		call.answer();
+    		} else {
+        		call.end();
+    		}
+		};   	
+    	
+		console.log(message);
+		// make the call handler
+		$('#dial').click(function (event) {
+		    event.preventDefault();
+		    var number = $('#number').val();
+
+		    // use the core SDK client to create the call
+		    var call = UC.phone.createCall(number);
+
+		    // determine where the remote part video stream should be directed
+		    call.onRemoteMediaStream = function(mediaStream) {
+		        var elem = document.getElementById('remote');
+		        attachMediaStream(elem, mediaStream);
+		    };
+		    
+		    // now dial the call
+		    call.dial();
+		});
+	}
+</script>
